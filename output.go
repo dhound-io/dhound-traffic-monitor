@@ -17,8 +17,8 @@ func (output *Output) Init() {
 	ticker := time.NewTicker(1 * time.Second)
 	go func() {
 		for range ticker.C {
-			for log := range output.Input {
-				output._processInput(log)
+			for logs := range output.Input {
+				output._processInput(logs)
 			}
 		}
 	}()
