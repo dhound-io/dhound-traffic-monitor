@@ -85,7 +85,7 @@ func (enricher *NetworkEventEnricher) _sync() {
 		enricher.SysManager.UpdatePorts()
 		for index, event := range enricher._cache {
 			if (event == nil){
-				break;
+				break
 			}
 
 			if (event.Process == nil) {
