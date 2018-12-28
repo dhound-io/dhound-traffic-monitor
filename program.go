@@ -35,7 +35,7 @@ func (program *Program) Init(env svc.Environment) error {
 			err = os.MkdirAll(logDir, 0765)
 		}
 
-		if(err == nil){
+		if (err == nil) {
 			log.SetOutput(&lumberjack.Logger{
 				Filename:   options.LogFile,
 				MaxSize:    50, // megabytes
@@ -72,20 +72,20 @@ func (program *Program) InternalRun() {
 	sysProcessManager.Run()
 
 	output := &Output{
-		Input:      make(chan []string),
+		Input:   make(chan []string),
 		Options: options,
 	}
 	output.Init()
 
 	networkEventEnricher := &NetworkEventEnricher{
 		Input:      make(chan *NetworkEvent),
-		Output: output.Input,
+		Output:     output.Input,
 		SysManager: sysProcessManager,
 	}
 
 	networkMonitor := &NetworkMonitor{
 		Options: options,
-		Output: networkEventEnricher.Input,
+		Output:  networkEventEnricher.Input,
 	}
 
 	networkMonitor.Run()
