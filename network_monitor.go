@@ -43,7 +43,7 @@ type NetworkConnectionData struct {
 type NetworkMonitor struct {
 	Options           *Options
 	Output            chan *NetworkEvent
-	Config            *MainConfig
+//	Config            *MainConfig
 	_ipToServicesMap  map[string][]string
 	SysProcessManager *SysProcessManager
 	_firstRun         bool
@@ -72,11 +72,27 @@ func (monitor *NetworkMonitor) Run() {
 func (monitor *NetworkMonitor) FindActiveNetInterfaces() []*NetInterfaceInfo {
 	activeInterfaces := make([]*NetInterfaceInfo, 0)
 	netInterfaces := monitor.FindAllNetInterfaces()
+	var targetInterface *NetInterfaceInfo
+
 	for _, dev := range netInterfaces {
 		if dev.Active {
 			activeInterfaces = append(activeInterfaces, dev)
+
+			if monitor.Options.NetworkInterface == dev.Name {
+				targetInterface = dev
+			}
 		}
 	}
+
+	if len(monitor.Options.NetworkInterface) > 0 {
+		if(targetInterface == nil){
+			emitLine(logLevel.important, "specified network interface '%s' not found among active network interfaces.", monitor.Options.NetworkInterface)
+		} else {
+			activeInterfaces = make([]*NetInterfaceInfo, 0)
+			activeInterfaces = append(activeInterfaces, targetInterface)
+		}
+	}
+
 	return activeInterfaces
 
 }
@@ -192,17 +208,15 @@ func (monitor *NetworkMonitor) _monitorInterfaceTraffic(dev *NetInterfaceInfo) {
 								LocalPort:          uint32(tcp.SrcPort),
 								Sequence:           tcp.Seq,
 								RemotePort:         uint32(tcp.DstPort),
-								EventTimeUtcNumber: DateToCustomLong(time.Now()),
+								EventTimeUtcNumber: time.Now().UTC().Unix(),
 							},
 						}
-
 						// emitLine(logLevel.verbose, "TCP INIT: %s:%d->%s:%d, seq: %d, ack: %d.", srcIp, tcp.SrcPort, dstIp, tcp.DstPort, tcp.Seq, tcp.Ack)
 					}
 				}
 				// external source responded on initiated connection
 				if tcp.SYN && tcp.ACK {
 					if localNetworkRegex.MatchString(srcIp) == false {
-
 						// emitLine(logLevel.verbose, "TCP ACCEPTED: %s:%d->%s:%d, seq: %d, ack: %d.", srcIp, tcp.SrcPort, dstIp, tcp.DstPort, tcp.Seq, tcp.Ack)
 						monitor.Output <- &NetworkEvent{
 							Type: TcpConnectionSetUp,
@@ -212,10 +226,9 @@ func (monitor *NetworkMonitor) _monitorInterfaceTraffic(dev *NetInterfaceInfo) {
 								LocalPort:          uint32(tcp.DstPort),
 								Sequence:           tcp.Ack,
 								RemotePort:         uint32(tcp.SrcPort),
-								EventTimeUtcNumber: DateToCustomLong(time.Now()),
+								EventTimeUtcNumber: time.Now().UTC().Unix(),
 							},
 						}
-
 					}
 				}
 
@@ -231,7 +244,7 @@ func (monitor *NetworkMonitor) _monitorInterfaceTraffic(dev *NetInterfaceInfo) {
 							RemoteIpAddress:    dstIp,
 							LocalPort:          uint32(tcp.SrcPort),
 							RemotePort:         uint32(tcp.DstPort),
-							EventTimeUtcNumber: DateToCustomLong(time.Now()),
+							EventTimeUtcNumber: time.Now().UTC().Unix(),
 						},
 					}
 					// debug("UDP: %s:%d->%s:%d", srcIp, udp.SrcPort, dstIp, udp.DstPort)

@@ -18,10 +18,13 @@ func (output *Output) Run() {
 
 	for lines := range output.Input {
 		if lines != nil && len(lines) > 0{
+			debugJson(lines)
 			// open file
+			/*
 			for _, line := range lines {
 				debug("OUTPUT: %s", *line)
 			}
+			*/
 		}
 	}
 }

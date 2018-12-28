@@ -75,7 +75,6 @@ func (manager *SysProcessManager) Run() {
 func (manager *SysProcessManager) GetProcessInfoByLocalPort(localPort uint32, localIpAddress string) *Process {
 	find := false
 	founded := Process{}
-	manager.UpdatePorts()
 
 	for _, elem := range manager._tcp {
 		currentIp := string(elem.Ip)
@@ -134,19 +133,20 @@ func getData(t string) []string {
 		proc_t = PROC_UDP6
 	} else {
 		fmt.Printf("%s is a invalid type, tcp and udp only!\n", t)
+		debugJson("Invalid type, tcp and udp only!")
 		os.Exit(1)
 	}
 
 	data, err := ioutil.ReadFile(proc_t)
 	if err != nil {
-		fmt.Println(err)
+		//fmt.Println(err)
+		debugJson(err)
 		os.Exit(1)
 	}
 	lines := strings.Split(string(data), "\n")
 
 	// Return lines without Header line and blank line on the end
 	return lines[1 : len(lines)-1]
-
 }
 
 func hexToDec(h string) int64 {
@@ -258,9 +258,7 @@ func removeEmpty(array []string) []string {
 func netstat(t string) []Process {
 	// Return a array of Process with Name, Ip, Port, State .. etc
 	// Require Root access to get information about some processes.
-
 	var Processes []Process
-
 	data := getData(t)
 
 	for _, line := range data {
@@ -282,7 +280,7 @@ func netstat(t string) []Process {
 		exe := getProcessExe(pid)
 		name := getProcessName(exe)
 
-		p := Process{uid, name, pid, exe, state, ip, port, fip, fport, false}
+		p := Process{uid, name, pid, exe, state, ip, port, fip, fport}
 
 		Processes = append(Processes, p)
 

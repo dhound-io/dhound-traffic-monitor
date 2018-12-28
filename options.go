@@ -20,6 +20,5 @@ func (options *Options) ParseArguments() {
 	flag.BoolVar(&options.Verbose, "verbose", options.Verbose, "log more detailed and debug information; default: false")
 	flag.BoolVar(&options.Version, "version", options.Version, "dhound traffic monitor version")
 	flag.StringVar(&options.Pprof, "pprof", options.Pprof, "(for internal using) profiling option")
-
 	flag.Parse()
 }

@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 import _ "net/http/pprof"
@@ -55,7 +55,7 @@ func (program *Program) InternalRun() {
 
 	options := program.Options
 
-	emitLine(logLevel.important, "Dhound traffic monitor %s started. Options: out='%s' log-file='%s' verbose='%t'", Version, options.Out, options.LogFile,  options.Verbose)
+	emitLine(logLevel.important, "Dhound traffic monitor %s started. Options: out='%s' log-file='%s' eth='%s' verbose='%t'", Version, options.Out, options.LogFile, options.NetworkInterface, options.Verbose)
 
 	if len(options.Pprof) > 0 {
 		go func() {
@@ -72,7 +72,7 @@ func (program *Program) InternalRun() {
 	sysProcessManager.Run()
 
 	output := &Output{
-		Input:      make(chan []*string),
+		Input:      make(chan []string),
 		Options: options,
 	}
 	output.Init()
@@ -89,7 +89,7 @@ func (program *Program) InternalRun() {
 	}
 
 	networkMonitor.Run()
-	go networkEventEnricher.Run()
+	networkEventEnricher.Run()
 	output.Run()
 }
 
