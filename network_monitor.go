@@ -5,10 +5,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
+	gopacket "github.com/google/gopacket"
+	layers "github.com/google/gopacket/layers"
+	pcap "github.com/google/gopacket/pcap"
 )
 
 type NetworkEventType int

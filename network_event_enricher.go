@@ -12,7 +12,8 @@ type ProcessNetworkEvent struct {
 	Type               NetworkEventType
 	Connection         *NetworkConnectionData
 	Dns                *DnsAnswer
-	Process            *Process
+	NetStatInfo			*NetStatInfo
+	ProcessInfo *ProcessInfo
 	Success            bool
 }
 
@@ -20,11 +21,12 @@ type NetworkEventEnricher struct {
 	Input      chan *NetworkEvent
 	Output     chan []string
 	SysManager *SysProcessManager
+	NetStat *NetStatManager
 	_cache     []*ProcessNetworkEvent
 }
 
 func (enricher *NetworkEventEnricher) Init() {
-	enricher._cache = make([]*ProcessNetworkEvent, 1000)
+	enricher._cache = make([]*ProcessNetworkEvent, 0)
 }
 
 func (enricher *NetworkEventEnricher) Run() {
@@ -61,42 +63,44 @@ func (enricher *NetworkEventEnricher) _processInput(networkEvent *NetworkEvent) 
 		// resource reponded on TCP SYN by SYN-ACK
 		for _, event := range enricher._cache {
 			if (event.Connection.LocalIpAddress == networkEvent.Connection.LocalIpAddress && event.Connection.LocalPort == networkEvent.Connection.LocalPort && event.Connection.Sequence == (networkEvent.Connection.Sequence - 1)) {
-				debugJson("Find!")
 				event.Success = true
 				break
 			}
 		}
 	}
 
-	// @TODO: process type 2 and 3
 	if (networkEvent.Type == 2) {
-		// @TODO process type 2
+		// TODO: debugJson(networkEvent)
 	}
 	if (networkEvent.Type == 3) {
-		// @TODO process type 3
+		// TODO: debugJson(networkEvent)
 	}
 }
 
 func (enricher *NetworkEventEnricher) _sync() {
-	debug("Sync started: %d", len(enricher._cache))
+	// debug("Sync started: %d", len(enricher._cache))
 
 	if len(enricher._cache) > 0 {
 		eventsToPublish := make([]*ProcessNetworkEvent, 0)
-		enricher.SysManager.UpdatePorts()
 		for index, event := range enricher._cache {
 			if (event == nil){
 				break
 			}
 
-			if (event.Process == nil) {
-				event.Process = enricher.SysManager.GetProcessInfoByLocalPort(event.Connection.LocalPort, event.Connection.LocalIpAddress)
+			if (event.NetStatInfo == nil) {
+				event.NetStatInfo = enricher.NetStat.FindNetstatInfoByLocalPort(event.Connection.LocalIpAddress, event.Connection.LocalPort)
+				// debugJson(event)
+			}
+
+			if(event.NetStatInfo != nil && event.ProcessInfo == nil){
+				event.ProcessInfo = enricher.SysManager.FindProcessInfoByPid(event.NetStatInfo.Pid)
+				// debugJson(event)
 			}
 
 			difference := time.Now().Sub(time.Unix(event.EventTimeUtcNumber, 0).UTC())
 			// max time for setting up connection - we give only 1 minute
 			isToPublish := false
-			//if (difference.Minutes() > 1 || enricher._isNetworkEventProcessCompleted(event)) {
-			if (difference.Seconds() > 15 || enricher._isNetworkEventProcessCompleted(event)) {
+			if (difference.Minutes() > 1 || enricher._isNetworkEventProcessCompleted(event)) {
 				isToPublish = true
 			}
 
@@ -122,10 +126,13 @@ func (enricher *NetworkEventEnricher) _sync() {
 				switch eventType := event.Type; eventType {
 					case TcpConnectionInitiatedByHost, TcpConnectionSetUp:
 						{
-							output = fmt.Sprintf("[%s]: TCP %s:%s %s:%s %t", time.Unix(event.EventTimeUtcNumber, 0).Format(time.RFC3339), event.Connection.LocalIpAddress, fmt.Sprint(event.Connection.LocalPort), event.Connection.RemoteIpAddress, fmt.Sprint(event.Connection.RemotePort), event.Success)
-							if event.Process != nil{
-								output = output + fmt.Sprintf(", user %s, name %s, pid %s, exe %s, state %s", event.Process.User, event.Process.Name, event.Process.Pid, event.Process.Exe, event.Process.State)
-								debugJson(1)
+							output = fmt.Sprintf("[%s]: TCP %s:%s -> %s:%s success:%t", time.Unix(event.EventTimeUtcNumber, 0).Format(time.RFC3339), event.Connection.LocalIpAddress, fmt.Sprint(event.Connection.LocalPort), event.Connection.RemoteIpAddress, fmt.Sprint(event.Connection.RemotePort), event.Success)
+							if event.NetStatInfo != nil{
+								output = output + fmt.Sprintf(" pid: %d", event.NetStatInfo.Pid)
+
+								if(event.ProcessInfo != nil){
+									output = output + fmt.Sprintf(" process: %s commandline: %s", event.ProcessInfo.Name, event.ProcessInfo.CommandLine)
+								}
 							}else{
 								//debugJson(event)
 							}
@@ -150,7 +157,7 @@ func (enricher *NetworkEventEnricher) _sync() {
 		}
 	}
 
-	debug("Sync end: %d", len(enricher._cache))
+	// debug("Sync end: %d", len(enricher._cache))
 }
 
 func (enricher *NetworkEventEnricher) _isNetworkEventProcessCompleted(event *ProcessNetworkEvent) (bool) {
@@ -158,7 +165,7 @@ func (enricher *NetworkEventEnricher) _isNetworkEventProcessCompleted(event *Pro
 		return false
 	}
 
-	if (event.Process != nil && event.Success == true) {
+	if (event.NetStatInfo != nil && event.ProcessInfo != nil && event.Success == true) {
 		return true
 	}
 

@@ -13,7 +13,7 @@ type Output struct {
 }
 
 func (output *Output) Init() {
-	debugJson("Output Init")
+
 	ticker := time.NewTicker(1 * time.Second)
 	go func() {
 		for range ticker.C {
@@ -25,11 +25,11 @@ func (output *Output) Init() {
 }
 
 func (output *Output) Run() {
-	debugJson("Output Run")
+
 }
 
 func (output *Output) _processInput(lines []string) {
-	debug("Output started %d", len(lines))
+	// debug("Output started %d", len(lines))
 	if lines != nil && len(lines) > 0 {
 		if (output.Options.Out == "syslog") {
 			logwriter, e := syslog.New(syslog.LOG_NOTICE, "Dhound Traffic Monitor")
@@ -50,5 +50,5 @@ func (output *Output) _processInput(lines []string) {
 			log.Print(line)
 		}
 	}
-	debug("Output finished %d", len(lines))
+	// debug("Output finished %d", len(lines))
 }

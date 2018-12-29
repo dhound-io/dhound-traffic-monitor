@@ -67,9 +67,11 @@ func (program *Program) InternalRun() {
 		}()
 	}
 
-	sysProcessManager := &SysProcessManager{}
-	sysProcessManager.Init()
-	sysProcessManager.Run()
+	netStat := &NetStatManager{}
+	netStat.Init()
+
+	 sysProcessManager := &SysProcessManager{}
+	 sysProcessManager.Init()
 
 	output := &Output{
 		Input:   make(chan []string),
@@ -77,20 +79,26 @@ func (program *Program) InternalRun() {
 	}
 	output.Init()
 
+
 	networkEventEnricher := &NetworkEventEnricher{
-		Input:      make(chan *NetworkEvent),
-		Output:     output.Input,
-		SysManager: sysProcessManager,
+	 	Input:      make(chan *NetworkEvent),
+	 	Output:     output.Input,
+	 	NetStat: netStat,
+	 	SysManager: sysProcessManager,
 	}
+	networkEventEnricher.Init()
 
 	networkMonitor := &NetworkMonitor{
 		Options: options,
 		Output:  networkEventEnricher.Input,
 	}
 
+	sysProcessManager.Run()
+	netStat.Run()
 	networkMonitor.Run()
-	networkEventEnricher.Run()
+	go networkEventEnricher.Run()
 	output.Run()
+
 }
 
 func (program *Program) Start() error {
