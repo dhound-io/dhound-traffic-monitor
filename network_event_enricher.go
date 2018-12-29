@@ -129,12 +129,9 @@ func (enricher *NetworkEventEnricher) _sync() {
 							output = fmt.Sprintf("[%s]: TCP %s:%s -> %s:%s success:%t", time.Unix(event.EventTimeUtcNumber, 0).Format(time.RFC3339), event.Connection.LocalIpAddress, fmt.Sprint(event.Connection.LocalPort), event.Connection.RemoteIpAddress, fmt.Sprint(event.Connection.RemotePort), event.Success)
 							if event.NetStatInfo != nil{
 								output = output + fmt.Sprintf(" pid: %d", event.NetStatInfo.Pid)
-
 								if(event.ProcessInfo != nil){
 									output = output + fmt.Sprintf(" process: %s commandline: %s", event.ProcessInfo.Name, event.ProcessInfo.CommandLine)
 								}
-							}else{
-								//debugJson(event)
 							}
 						}
 						// @TODO Write logs for UDP&DNS types
@@ -147,6 +144,9 @@ func (enricher *NetworkEventEnricher) _sync() {
 						{
 							debugJson(4)
 						}
+					default:{
+						debugJson(5)
+					}
 				}
 				debugJson(output)
 				if (output != ""){

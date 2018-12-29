@@ -36,10 +36,7 @@ func (manager *NetStatManager) netstat(list []*NetStatInfo, netStatFile string, 
 	data := manager.GetNetStatDataByprotocol(netStatFile)
 
 	for _, line := range data {
-
 		netStatInfo := &NetStatInfo{}
-
-
 		// local ip and port
 		line_array := removeEmpty(strings.Split(strings.TrimSpace(line), " "))
 		ip_port := strings.Split(line_array[1], ":")

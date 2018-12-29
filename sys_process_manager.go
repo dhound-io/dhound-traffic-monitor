@@ -30,7 +30,7 @@ func (manager *SysProcessManager) Run() {
 }
 
 func (manager *SysProcessManager) _syncProcessInfoOnPids() bool {
-
+	
 	processes, err := process.Processes()
 	if err != nil {
 		emitLine(logLevel.important, "could not get processes: %s", err.Error())
@@ -71,12 +71,11 @@ func (manager *SysProcessManager) _syncProcessInfoOnPids() bool {
 			if ContainsInt32(pidsToProcess, process.Pid) {
 				name, _ := process.Name()
 				manager._pidToProcessInfoMap[process.Pid].Name = name
-				cmdLine, _ := process.Cmdline()
-				manager._pidToProcessInfoMap[process.Pid].CommandLine =cmdLine
 				// debug("new pid: %d (%s)", process.Pid, name)
 			}
 		}
 	}
+
 	return true
 }
 
@@ -84,6 +83,19 @@ func (manager *SysProcessManager) FindProcessInfoByPid(pid int32) *ProcessInfo {
 
 	if pid > 0 {
 		if processInfo, ok := manager._pidToProcessInfoMap[pid]; ok {
+
+			if(len(processInfo.CommandLine) < 1){
+				process, _ := process.NewProcess(pid)
+				if(process != nil) {
+					cmdLine, _ := process.Cmdline()
+					processInfo.CommandLine = cmdLine
+				}
+
+				if(len(processInfo.CommandLine) < 1){
+					processInfo.CommandLine = "-"
+				}
+			}
+
 			return processInfo
 		}
 	}
