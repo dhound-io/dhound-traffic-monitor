@@ -16,3 +16,6 @@ git:
 # Skip the install step. Don't `go get` dependencies. Only build with the code
 # in vendor/
 install: true
+
+env:
+  - GO111MODULE=on
