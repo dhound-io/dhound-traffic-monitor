@@ -125,7 +125,6 @@ func (monitor *NetworkMonitor) FindAllNetInterfaces() []*NetInterfaceInfo {
 }
 
 func (monitor *NetworkMonitor) _monitorInterfaceTraffic(dev *NetInterfaceInfo) {
-
 	deviceName := dev.Name
 	handle, err := pcap.OpenLive(deviceName, 1600, false, pcap.BlockForever)
 	if err != nil {
@@ -137,7 +136,9 @@ func (monitor *NetworkMonitor) _monitorInterfaceTraffic(dev *NetInterfaceInfo) {
 
 	// Set filter
 	filterLines := make([]string, 0)
+	/*
 	for _, address := range dev.Addresses {
+		//debugJson(address)
 		// track all UDP traffic initiated by host
 		filterLines = append(filterLines, fmt.Sprintf("(udp && src host %s)", address))
 		// track DNS traffic that comes on the host
@@ -146,12 +147,14 @@ func (monitor *NetworkMonitor) _monitorInterfaceTraffic(dev *NetInterfaceInfo) {
 		filterLines = append(filterLines, fmt.Sprintf("((tcp[tcpflags] == tcp-syn) && src %s)", address))
 		// track TCP SYN-ACK sent to host (TCP connection is opened)
 		filterLines = append(filterLines, fmt.Sprintf("(tcp[13] = 18 and dst host %s)", address))
+		//debugJson(filterLines)
 	}
+	*/
+
 
 	trafficFilter := strings.Join(filterLines, " || ")
 	// this filter can be used for tcpdump to check
 	// debug(trafficFilter)
-
 	err = handle.SetBPFFilter(trafficFilter)
 	if err != nil {
 		emitLine(logLevel.important, "Failed set BPF Filter on device %s. Error: %s. Filter: %s", deviceName, err.Error(), trafficFilter)
@@ -231,26 +234,22 @@ func (monitor *NetworkMonitor) _monitorInterfaceTraffic(dev *NetInterfaceInfo) {
 					}
 				}
 
-				//debugJson(tcp)
-
 			case layers.LayerTypeUDP:
 				// track udp traffic to Internet (not from Ethernet)
-				if localNetworkRegex.MatchString(dstIp) == false {
-					monitor.Output <- &NetworkEvent{
-						Type: UdpSendByHost,
-						Connection: &NetworkConnectionData{
-							LocalIpAddress:     srcIp,
-							RemoteIpAddress:    dstIp,
-							LocalPort:          uint32(tcp.SrcPort),
-							RemotePort:         uint32(tcp.DstPort),
-							EventTimeUtcNumber: time.Now().UTC().Unix(),
-						},
-					}
-					// debug("UDP: %s:%d->%s:%d", srcIp, udp.SrcPort, dstIp, udp.DstPort)
+				//if localNetworkRegex.MatchString(dstIp) == false {
+				monitor.Output <- &NetworkEvent{
+					Type: UdpSendByHost,
+					Connection: &NetworkConnectionData{
+						LocalIpAddress:     srcIp,
+						RemoteIpAddress:    dstIp,
+						LocalPort:          uint32(udp.SrcPort),
+						RemotePort:         uint32(udp.DstPort),
+						EventTimeUtcNumber: time.Now().UTC().Unix(),
+					},
 				}
+				//}
 
 			case layers.LayerTypeDNS:
-				// debugJson(dns)
 				if int(dns.ANCount) > 0 {
 					for _, dnsQuestion := range dns.Questions {
 						var ips []string

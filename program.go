@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/judwhite/go-svc/svc"
+	svc "github.com/judwhite/go-svc/svc"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 	"log"
 	"net/http"

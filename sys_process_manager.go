@@ -30,7 +30,7 @@ func (manager *SysProcessManager) Run() {
 }
 
 func (manager *SysProcessManager) _syncProcessInfoOnPids() bool {
-	
+
 	processes, err := process.Processes()
 	if err != nil {
 		emitLine(logLevel.important, "could not get processes: %s", err.Error())
@@ -65,7 +65,6 @@ func (manager *SysProcessManager) _syncProcessInfoOnPids() bool {
 	}
 
 	if len(pidsToProcess) > 0 {
-
 		// parse name
 		for _, process := range processes {
 			if ContainsInt32(pidsToProcess, process.Pid) {

@@ -29,7 +29,6 @@ func (manager *NetStatManager) SyncPortList() {
 	list = manager.netstat(list, PROC_UDP6, procFiles)
 
 	manager._cache = list
-// 	debugJson(manager._cache)
 }
 
 func (manager *NetStatManager) netstat(list []*NetStatInfo, netStatFile string, procFiles *[]string) []*NetStatInfo {

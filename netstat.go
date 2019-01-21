@@ -1,6 +1,8 @@
 package main
 
-import "time"
+import (
+	"time"
+)
 
 type NetStatInfo struct {
 	Pid         int32
@@ -34,6 +36,7 @@ func (netstat *NetStatManager) FindNetstatInfoByLocalPort(localIp string, localP
 				return info
 			}
 		}
+
 		// check only by port
 		for _, info := range cache{
 			if(info.LocalPort == localPort){

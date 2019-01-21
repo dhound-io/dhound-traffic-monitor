@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -62,48 +63,97 @@ func (enricher *NetworkEventEnricher) _processInput(networkEvent *NetworkEvent) 
 	if (networkEvent.Type == 1 && networkEvent.Connection != nil) {
 		// resource reponded on TCP SYN by SYN-ACK
 		for _, event := range enricher._cache {
-			if (event.Connection.LocalIpAddress == networkEvent.Connection.LocalIpAddress && event.Connection.LocalPort == networkEvent.Connection.LocalPort && event.Connection.Sequence == (networkEvent.Connection.Sequence - 1)) {
-				event.Success = true
-				break
+			// Check only type 0 events
+			if (event == nil){
+			} else {
+				if (event.Type == 0) {
+					if (event.Connection.LocalIpAddress == networkEvent.Connection.LocalIpAddress && event.Connection.LocalPort == networkEvent.Connection.LocalPort && event.Connection.Sequence == (networkEvent.Connection.Sequence-1)) {
+						event.Success = true
+						break
+					}
+				}
 			}
 		}
 	}
 
-	if (networkEvent.Type == 2) {
-		// TODO: debugJson(networkEvent)
+	if (networkEvent.Type == UdpSendByHost) {
+		event := &ProcessNetworkEvent{
+			Type:               networkEvent.Type,
+			Connection:         networkEvent.Connection,
+			EventTimeUtcNumber: networkEvent.Connection.EventTimeUtcNumber,
+			Success:            false,
+		}
+		enricher._cache = append(enricher._cache, event) // add to cache
 	}
-	if (networkEvent.Type == 3) {
-		// TODO: debugJson(networkEvent)
+
+	if (networkEvent.Type == DnsResponseReceived) {
+		dnsAnswer := &DnsAnswer{
+			DomainName: networkEvent.Dns.DomainName,
+			IpAddresses: networkEvent.Dns.IpAddresses,
+		}
+		event := &ProcessNetworkEvent{
+			Type:               networkEvent.Type,
+			Dns:        dnsAnswer,
+			EventTimeUtcNumber: time.Now().Unix(),
+			Success:            false,
+		}
+		enricher._cache = append(enricher._cache, event) // add to cache
 	}
 }
 
 func (enricher *NetworkEventEnricher) _sync() {
-	// debug("Sync started: %d", len(enricher._cache))
-
+	debug("Sync started: %d", len(enricher._cache))
 	if len(enricher._cache) > 0 {
 		eventsToPublish := make([]*ProcessNetworkEvent, 0)
 		for index, event := range enricher._cache {
 			if (event == nil){
 				break
 			}
-
-			if (event.NetStatInfo == nil) {
-				event.NetStatInfo = enricher.NetStat.FindNetstatInfoByLocalPort(event.Connection.LocalIpAddress, event.Connection.LocalPort)
-				// debugJson(event)
-			}
-
-			if(event.NetStatInfo != nil && event.ProcessInfo == nil){
-				event.ProcessInfo = enricher.SysManager.FindProcessInfoByPid(event.NetStatInfo.Pid)
-				// debugJson(event)
-			}
-
-			difference := time.Now().Sub(time.Unix(event.EventTimeUtcNumber, 0).UTC())
-			// max time for setting up connection - we give only 1 minute
+			/**/
 			isToPublish := false
-			if (difference.Minutes() > 1 || enricher._isNetworkEventProcessCompleted(event)) {
-				isToPublish = true
-			}
+			switch eventType := event.Type; eventType {
+				case TcpConnectionInitiatedByHost, TcpConnectionSetUp:
+					{
+						if (event.NetStatInfo == nil) {
+							event.NetStatInfo = enricher.NetStat.FindNetstatInfoByLocalPort(event.Connection.LocalIpAddress, event.Connection.LocalPort)
+						}
 
+						if (event.NetStatInfo != nil && event.ProcessInfo == nil) {
+							event.ProcessInfo = enricher.SysManager.FindProcessInfoByPid(event.NetStatInfo.Pid)
+						}
+
+						difference := time.Now().Sub(time.Unix(event.EventTimeUtcNumber, 0).UTC())
+						// max time for setting up connection - we give only 1 minute
+
+						if (difference.Minutes() > 1 || enricher._isNetworkEventProcessCompleted(event)) {
+							isToPublish = true
+						}
+					}
+					// @TODO Write logs for UDP types
+				case UdpSendByHost:
+					{
+						if (event.NetStatInfo == nil) {
+							event.NetStatInfo = enricher.NetStat.FindNetstatInfoByLocalPort(event.Connection.LocalIpAddress, event.Connection.LocalPort)
+						}
+
+						if (event.NetStatInfo != nil && event.ProcessInfo == nil) {
+							event.ProcessInfo = enricher.SysManager.FindProcessInfoByPid(event.NetStatInfo.Pid)
+						}
+
+						difference := time.Now().Sub(time.Unix(event.EventTimeUtcNumber, 0).UTC())
+						// max time for setting up connection - we give only 1 minute
+
+						if (difference.Minutes() > 1 || enricher._isNetworkEventProcessCompleted(event)) {
+							isToPublish = true
+						}
+					}
+					// @TODO Write logs for DNS types
+				case DnsResponseReceived:
+					{
+						isToPublish = true
+					}
+			}
+			/**/
 			if (isToPublish) {
 				eventsToPublish = append(eventsToPublish, event)
 				enricher._cache = enricher.RemoveIndex(enricher._cache, index)
@@ -115,13 +165,6 @@ func (enricher *NetworkEventEnricher) _sync() {
 			linesToPublish := make([]string, len(eventsToPublish))
 
 			for index, event := range eventsToPublish {
-				/*
-					TcpConnectionInitiatedByHost NetworkEventType = iota
-					TcpConnectionSetUp
-					UdpSendByHost
-					DnsResponseReceived
-					event.Type
-				*/
 				output := ""
 				switch eventType := event.Type; eventType {
 					case TcpConnectionInitiatedByHost, TcpConnectionSetUp:
@@ -134,21 +177,24 @@ func (enricher *NetworkEventEnricher) _sync() {
 								}
 							}
 						}
-						// @TODO Write logs for UDP&DNS types
+						// @TODO Write logs for UDP types
 					case UdpSendByHost:
 						{
-							debugJson(3)
+							output = fmt.Sprintf("[%s]: UDP %s:%s -> %s:%s", time.Unix(event.EventTimeUtcNumber, 0).Format(time.RFC3339), event.Connection.LocalIpAddress, fmt.Sprint(event.Connection.LocalPort), event.Connection.RemoteIpAddress, fmt.Sprint(event.Connection.RemotePort))
+							if event.NetStatInfo != nil{
+								output = output + fmt.Sprintf(" pid: %d", event.NetStatInfo.Pid)
+								if(event.ProcessInfo != nil){
+									output = output + fmt.Sprintf(" process: %s commandline: %s", event.ProcessInfo.Name, event.ProcessInfo.CommandLine)
+								}
+							}
 						}
-						// @TODO Write logs for UDP&DNS types
+						// @TODO Write logs for DNS types
 					case DnsResponseReceived:
 						{
-							debugJson(4)
+							var ips = strings.Join(*event.Dns.IpAddresses, ", ")
+							output = fmt.Sprintf("[%s]: DNS domain:%s, ip: [%s]", time.Unix(event.EventTimeUtcNumber, 0).Format(time.RFC3339), event.Dns.DomainName, ips)
 						}
-					default:{
-						debugJson(5)
-					}
 				}
-				debugJson(output)
 				if (output != ""){
 					linesToPublish[index] = output
 				}

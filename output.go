@@ -35,8 +35,6 @@ func (output *Output) _processInput(lines []string) {
 			logwriter, e := syslog.New(syslog.LOG_NOTICE, "Dhound Traffic Monitor")
 			if e == nil {
 				log.SetOutput(logwriter)
-			} else {
-				debugJson(e)
 			}
 		} else {
 			log.SetOutput(&lumberjack.Logger{
